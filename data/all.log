@@ -1,0 +1,38 @@
+PLINK v1.90b3.36 64-bit (31 Mar 2016)
+Options in effect:
+  --cluster
+  --file all
+  --mds-plot 2
+  --noweb
+  --out all
+
+Hostname: sango-login3.oist.jp
+Working directory: /work/MikheyevU/sasha/guppies/data/var/grm
+Start time: Tue Oct 30 11:32:30 2018
+
+Note: --noweb has no effect since no web check is implemented yet.
+Random number seed: 1540866750
+128667 MB RAM detected; reserving 64333 MB for main workspace.
+Scanning .ped file...
+Possibly irregular .ped line.  Restarting scan, assuming multichar alleles.
+.ped scan complete (for binary autoconversion).
+Performing single-pass .bed write (1822 variants, 233 people).
+--file: all-temporary.bed + all-temporary.bim + all-temporary.fam written.
+1822 variants loaded from .bim file.
+233 people (0 males, 0 females, 233 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to all.nosex .
+Using up to 23 threads (change this with --threads).
+Before main variant filters, 233 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate is 0.858798.
+1822 variants and 233 people pass filters and QC.
+Note: No phenotypes present.
+Excluding 60 variants on non-autosomes from distance matrix calc.
+Distance matrix calculation complete.
+Clustering... done.
+Cluster solution written to all.cluster1 , all.cluster2 , and all.cluster3 .
+Performing multidimensional scaling analysis (SVD algorithm, 2
+dimensions)... done.
+MDS solution written to all.mds .
+
+End time: Tue Oct 30 11:32:30 2018
