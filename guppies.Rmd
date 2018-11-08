@@ -28,7 +28,7 @@ dropSuspicious = c("site2_male54", "site2_male16", "site1_male55", "site1_male23
 ggplot(filter(mds, ! id %in% dropSuspicious), aes(C1, C2, color=site)) + geom_point()
 ```
 
-Looks like there are some individuals may have been switched, and we'll drop them just in case, though the full analysis is presented [below](link](###-re-run-with-all-data)).
+Looks like there are some individuals may have been switched, and we'll drop them just in case, though the full analysis is presented [below](###-re-run-with-all-data).
 
 ## Read phenotypic data from VCFtools
 filtered using vcftools ` --mac 10 --max-missing 0.5 --minQ 20 --minDP 6 `
@@ -59,7 +59,6 @@ orangeModel <- asreml(fixed=orange~1+het+site,
 random= ~giv(gen),
 ginverse= list(gen  = Ginv),
 data=pheno, control = asreml.control(maxiter=20))
-summary(orangeModel,all=T)$coef.fi
 
 summary(orangeModel)
 summary(orangeModel)$varcomp
@@ -68,7 +67,7 @@ hist(orangeModel$residuals)
 summary(orangeModel,all=T)$coef.fi
 ```
 
-## Looking only at chromosome 12, the location of the sex locu
+## Looking only at chromosome 12, the location of the sex determination locus
 ```{r chr12}
 G12 <- A.mat(gen[,which(pos$chrom==12)+2])
 diag(G12) <- diag(G12)+0.001
@@ -119,9 +118,12 @@ pin <- function (object, transform) {
 ```{r mcmcglmm, cache=T}
 Ginv.1 <- as(Ginv, "dgCMatrix")
 prior1.1 <- list(G = list(G1 = list(V = 1, nu = 0.002)), R = list(V = 1, nu = 0.002))
-model1.1 <- MCMCglmm(orange ~ 1 + het + site , random = ~gen, ginverse = list(gen = Ginv.1), data = as.data.frame(pheno), prior = prior1.1, family = "gaussian", nitt = 100000, burnin = 3000)
+model1.1 <- MCMCglmm(orange ~ 1 + het + site , random = ~gen, ginverse = list(gen = Ginv.1), data = as.data.frame(pheno), prior = prior1.1, family = "gaussian", nitt = 100000, burnin = 3000, verbose = F)
+```
+
+```{r}
 summary(model1.1)
-plot(model1.1)
+plot(model1.1$Sol)
 posterior.heritability1.1 <- model1.1$VCV[, "gen"]/(model1.1$VCV[,
 "gen"] + model1.1$VCV[, "units"])
 HPDinterval(posterior.heritability1.1, 0.95)
@@ -155,6 +157,6 @@ summary(orangeModel,all=T)$coef.fi
 
 Ginv.1 <- as(Ginv, "dgCMatrix")
 prior1.1 <- list(G = list(G1 = list(V = 1, nu = 0.002)), R = list(V = 1, nu = 0.002))
-model1.1 <- MCMCglmm(orange ~ 1 + het + site , random = ~gen, ginverse = list(gen = Ginv.1), data = as.data.frame(pheno), prior = prior1.1, family = "gaussian", nitt = 100000, burnin = 3000)
+model1.1 <- MCMCglmm(orange ~ 1 + het + site , random = ~gen, ginverse = list(gen = Ginv.1), data = as.data.frame(pheno), prior = prior1.1, family = "gaussian", nitt = 100000, burnin = 3000,  verbose = F)
 summary(model1.1)
 ```
