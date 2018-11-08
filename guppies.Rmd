@@ -8,6 +8,7 @@ output:
     toc_float: true
     toc_depth: 5
     theme: cerulean
+output_file: "index.html"
 editor_options: 
   chunk_output_type: console
 ---
@@ -18,6 +19,9 @@ library(asreml)
 library(tidyverse)
 library(rrBLUP)
 library(MCMCglmm)
+library(brms)
+library(sommer)
+library(lme4)
 ```
 
 ## Site structure
@@ -121,7 +125,7 @@ prior1.1 <- list(G = list(G1 = list(V = 1, nu = 0.002)), R = list(V = 1, nu = 0.
 model1.1 <- MCMCglmm(orange ~ 1 + het + site , random = ~gen, ginverse = list(gen = Ginv.1), data = as.data.frame(pheno), prior = prior1.1, family = "gaussian", nitt = 100000, burnin = 3000, verbose = F)
 ```
 
-```{r}
+```{r fig.height=10, fig.width=5}
 summary(model1.1)
 plot(model1.1$Sol)
 posterior.heritability1.1 <- model1.1$VCV[, "gen"]/(model1.1$VCV[,
@@ -135,8 +139,6 @@ There were a couple of sites that were probably switched and may have incorrect 
 
 ```{r reRun, cache=T}
 pheno <- read_tsv("data/guppy pheno.tsv", col_types = cols()) %>% mutate(orange=rowMeans(cbind(L_Orangearea, R_Orangearea), na.rm=T), site = factor(Site)) %>% select(site, Label, orange, TopBottom) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols()), by=c("Label" = "pheno")) %>% left_join(read_tsv("data/out.het", col_types = cols()) %>% mutate(het = 1 - `O(HOM)`/ N_SITES) %>% select(gen = INDV, het, F, nsites = N_SITES)) %>% na.omit()
-ggplot(pheno, aes(het, orange, color=site))+geom_point()
-with(pheno, cor.test(het, orange, method="s"))
 indvs <- read_tsv("data/out.012.indv", col_names = c("gen")) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols())) 
 pos <- read_tsv("data/out.012.pos", col_names = c("chrom", "pos"), col_types = "cn") %>% mutate(marker = paste(chrom, pos, sep = "_"))
 gen <- cbind(indvs, read_tsv("data/out.012", col_names = F) - 1 ) 
