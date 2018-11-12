@@ -10,6 +10,7 @@ output:
     theme: cerulean
 editor_options: 
   chunk_output_type: console
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = 'index.html') })
 ---
 
 ```{r setup, include=FALSE}
@@ -19,22 +20,21 @@ library(brms)
 library(sommer)
 library(lmerTest)
 library(tidyverse)
+library(scales)
 ```
 
-## Site structure
+# Site structure
 ```{r}
 mds <- read_table("data/all.mds") %>% separate(FID, c("site", "ind"), extra = "merge") %>% select(site, id = IID, C1, C2)
 ggplot(mds, aes(C1, C2, color=site)) + geom_point() + scale_color_brewer(type='qual')+theme_bw()
-dropSuspicious = c("site2_male54", "site2_male16", "site1_male55", "site1_male23")
-ggplot(filter(mds, ! id %in% dropSuspicious), aes(C1, C2, color=site)) + geom_point()
 ```
 
 Looks like there are some individuals may have been switched, and we'll drop them just in case, though the full analysis is presented [below](###-re-run-with-all-data).
 
-## Read phenotypic data from VCFtools
+# Read phenotypic data from VCFtools
 filtered using vcftools ` --mac 10 --max-missing 0.5 --minQ 20 --minDP 6 `
 ```{r}
-pheno <- read_tsv("data/guppy pheno.tsv", col_types = cols()) %>% mutate(orange=rowMeans(cbind(L_Orangearea, R_Orangearea), na.rm=T), site = factor(Site)) %>% select(site, Label, orange, TopBottom) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols()), by=c("Label" = "pheno")) %>% left_join(read_tsv("data/out.het", col_types = cols()) %>% mutate(het = 1 - `O(HOM)`/ N_SITES) %>% select(gen = INDV, het, F, nsites = N_SITES)) %>% na.omit() %>% filter(! gen %in% dropSuspicious)
+pheno <- read_tsv("data/guppy pheno.tsv", col_types = cols()) %>% mutate(orange=rowMeans(cbind(L_Orangearea, R_Orangearea), na.rm=T), site = factor(Site)) %>% select(site, Label, orange, TopBottom) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols()), by=c("Label" = "pheno")) %>% left_join(read_tsv("data/out.het", col_types = cols()) %>% mutate(het = 1 - `O(HOM)`/ N_SITES) %>% select(gen = INDV, het, F, nsites = N_SITES)) %>% na.omit() 
 ggplot(pheno, aes(het, orange, color=site))+geom_point()
 
 model.sameSlopes <- lmer(sqrt(orange) ~ het + (1|site), data = pheno)
@@ -43,20 +43,23 @@ anova(model.sepSlopes,model.sameSlopes)
 summary(model.sameSlopes)
 ```
 
-Using a basic mixed model approach, there is marginal (one-tailed) significance for the effect of heterozygosity. Given that there is no support for a model with separate slopes, we'll focus on the random intercept mixed model.
+Using a basic mixed model approach, there is marginal significance for the effect of heterozygosity. Given that there is no support for a model with separate slopes, we'll focus on the random intercept mixed model.
 
 ## Read genotypes
 
-We calculate the GRM and get it ready for asreml/mcmcglmm
+We calculate the GRM and get it ready for `sommer`/`brms` analysis. First we see if including a GRM actually helps our analysis.
 
 ```{r sommer}
-indvs <- read_tsv("data/out.012.indv", col_names = c("gen")) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols())) 
+indvs <- read_tsv("data/out.012.indv", col_names = c("gen")) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols())) # read data 
+pheno <- left_join(indvs, pheno) # re-order pheno data frame to match genotypes
 pos <- read_tsv("data/out.012.pos", col_names = c("chrom", "pos"), col_types = "cn") %>% mutate(marker = paste(chrom, pos, sep = "_"))
-gen <- cbind(indvs, read_tsv("data/out.012", col_names = F) - 1 ) %>% filter(! gen %in% dropSuspicious)
+gen <- cbind(indvs, read_tsv("data/out.012", col_names = F) - 1 ) 
 G <- A.mat(gen %>% select(-c(gen, pheno)))
 colnames(G) <- gen$gen
 rownames(G) <- gen$gen
-heatmap(G)
+
+siteColors <- data.frame(site = gsub("(site\\d).*", "\\1", rownames(G))) %>% left_join(data.frame(site = paste0("site",1:6), color = scales::brewer_pal(type="qual")(6)), stringsAsFactors = F)
+heatmap(G, Rowv=NA, Colv=NA, ColSideColors=as.character(siteColors$color), RowSideColors=as.character(siteColors$color), labRow = NA, labCol = NA)
 # Add a small amount to the diagonal so G is invertable
 diag(G) <- diag(G)+0.001
 #Need to invert G for the mixed model equations
@@ -68,16 +71,25 @@ orangeModel.sommer <- mmer2(sqrtOrange~1+het,
                             iters = 20,
                             silent=T,
                             data=pheno %>% mutate(sqrtOrange = sqrt(orange)))
-summary(orangeModel.sommer)
-hist(resid(orangeModel.sommer))
+
+orangeModel.sommer.noGRM <- mmer2(sqrtOrange~1, 
+                            random=~site,
+                            rcov=~units,
+                            tolpar = 1e-02,
+                            iters = 20,
+                            silent=T,
+                            data=pheno %>% mutate(sqrtOrange = sqrt(orange)))
+anova(orangeModel.sommer.noGRM, orangeModel.sommer)
 ```
+
+Adding a GRM term does not improve model fit for the mixed model.
 
 ## Looking only at chromosome 12, the location of the sex determination locus
 ```{r chr12}
 G12 <- A.mat(gen[,which(pos$chrom==12)+2])
 diag(G12) <- diag(G12)+0.001
-colnames(G12) <- G12$gen
-rownames(G12) <- G12$gen
+colnames(G12) <- gen$gen
+rownames(G12) <- gen$gen
 
 orangeModel12.sommer <- mmer2(sqrtOrange~1+het, 
                             random=~g(gen) + site,
@@ -90,57 +102,42 @@ orangeModel12.sommer <- mmer2(sqrtOrange~1+het,
 summary(orangeModel12.sommer)
 ```
 
-Nothing really interesting on chr12
+Nothing really unusual on chr12.
 
 ## Bayesian solution
 
-```{r bayesian, cache=T}
-model.brms <- brm(orange ~ het + (1|site) + (1|gen), 
+```{r brms_full, cache=TRUE, message=F, results="hide"}
+model.brms.full <- brm(orange ~ het + (1|site) + (1|gen), 
                 cov_ranef = list(gen=G),
                 control = list(adapt_delta = 0.99), 
                 data = pheno, 
                 cores = 2)
-plot(model.brms)
-summary(model.brms)
 ```
 
-## Re-run with all data
 
-There were a couple of sites that were probably switched and may have incorrect data, but we'll re-run everything here to confirm that dropping them doesn't affect the results.
-
-```{r reRun, cache=T}
-pheno <- read_tsv("data/guppy pheno.tsv", col_types = cols()) %>% mutate(orange=rowMeans(cbind(L_Orangearea, R_Orangearea), na.rm=T), site = factor(Site)) %>% select(site, Label, orange, TopBottom) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols()), by=c("Label" = "pheno")) %>% left_join(read_tsv("data/out.het", col_types = cols()) %>% mutate(het = 1 - `O(HOM)`/ N_SITES) %>% select(gen = INDV, het, F, nsites = N_SITES)) %>% na.omit()
-indvs <- read_tsv("data/out.012.indv", col_names = c("gen")) %>% left_join(read_csv("data/geno2pheno.csv", col_types = cols())) 
-pos <- read_tsv("data/out.012.pos", col_names = c("chrom", "pos"), col_types = "cn") %>% mutate(marker = paste(chrom, pos, sep = "_"))
-gen <- cbind(indvs, read_tsv("data/out.012", col_names = F) - 1 ) 
-G <- A.mat(gen %>% select(-c(gen, pheno)))
-
-# Add a small amount to the diagonal so G is invertable
-diag(G) <- diag(G)+0.001
-colnames(G) <- gen$gen
-rownames(G) <- gen$gen
-
-orangeModel.sommerAll <- mmer2(sqrtOrange~1+het, 
-                            random=~g(gen) + site,
-                            rcov=~units,
-                            G=list(gen=G),
-                            tolpar = 1e-02,
-                            iters = 20,
-                            silent=T,
-                            data=pheno %>% mutate(sqrtOrange = sqrt(orange)))
-summary(orangeModel.sommerAll)
-hist(resid(orangeModel.sommerAll))
-
-```
-
-```{r}
-
-lme.brmsAll <- brm(orange ~ het + (1|site) + (1|gen), 
-                cov_ranef = list(gen=G),
+```{r brms_reduced, cache=TRUE, message=F, results="hide"}
+model.brms.noGRM <- brm(orange ~ het + (1|site) , 
                 control = list(adapt_delta = 0.99), 
                 data = pheno, 
                 cores = 2)
-plot(lme.brmsAll)
-summary(lme.brmsAll)
-
 ```
+
+```{r brms_compare}
+waic(model.brms.full, model.brms.noGRM)
+summary(model.brms.full)
+```
+
+For the Bayesian fit, you do have a better model with with a GRM, and a significan effect of heterozygosite on organge.
+
+# GWAS
+
+Are there loci associated with the orange phenotype?
+
+```{r gwas, cache=T}
+Za <- diag(dim(pheno)[1]) # create mapping between phenotype and genotype
+ETA.A <- list(add=list(Z=Za,K=G))
+ans <- GWAS(Y=pheno[,c("orange")], Z=ETA.A, M=gen %>% select(-c(gen, pheno)), silent=T)
+pos[which(ans$M.scores$score > ans$fdr),]
+```
+
+There are no significantly loci associated with orange coloration that we could detect.
