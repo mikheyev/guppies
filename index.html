@@ -1545,6 +1545,102 @@ anova(model.sepSlopes,model.sameSlopes)</code></pre>
 ##     (Intr)
 ## het -0.818</code></pre>
 <p>Using a basic mixed model approach, there is marginal significance for the effect of heterozygosity. Given that there is no support for a model with separate slopes, we’ll focus on the random intercept mixed model.</p>
+<div id="applying-within-group-centering" class="section level3">
+<h3>Applying within-group centering</h3>
+<pre class="r"><code>phenoCentered &lt;- pheno %&gt;% group_by(site) %&gt;% transmute(het = het, sqrtOrange = sqrt(orange), meanSite = mean(het), withinSite = het - meanSite)  %&gt;% ungroup() 
+
+model.CenteredSameSlopes2 &lt;- lmer(sqrtOrange ~ withinSite + meanSite + (1|site), data = phenoCentered)
+summary(model.CenteredSameSlopes2)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: sqrtOrange ~ withinSite + meanSite + (1 | site)
+##    Data: phenoCentered
+## 
+## REML criterion at convergence: 515.3
+## 
+## Scaled residuals: 
+##      Min       1Q   Median       3Q      Max 
+## -2.63755 -0.73556 -0.09651  0.75648  2.82301 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  site     (Intercept) 0.0688   0.2623  
+##  Residual             0.4966   0.7047  
+## Number of obs: 240, groups:  site, 6
+## 
+## Fixed effects:
+##             Estimate Std. Error       df t value Pr(&gt;|t|)  
+## (Intercept)   2.4390     0.9375   4.0000   2.602   0.0599 .
+## withinSite    2.9922     1.4222 233.0000   2.104   0.0365 *
+## meanSite     -4.3833     8.0083   4.0000  -0.547   0.6132  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##            (Intr) wthnSt
+## withinSite  0.000       
+## meanSite   -0.992  0.000</code></pre>
+<pre class="r"><code>model.CenteredSameSlopes3 &lt;- lmer(sqrtOrange ~ het + meanSite + (1|site), data = phenoCentered)
+summary(model.CenteredSameSlopes3)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+## lmerModLmerTest]
+## Formula: sqrtOrange ~ het + meanSite + (1 | site)
+##    Data: phenoCentered
+## 
+## REML criterion at convergence: 515.3
+## 
+## Scaled residuals: 
+##      Min       1Q   Median       3Q      Max 
+## -2.63755 -0.73556 -0.09651  0.75648  2.82301 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  site     (Intercept) 0.0688   0.2623  
+##  Residual             0.4966   0.7047  
+## Number of obs: 240, groups:  site, 6
+## 
+## Fixed effects:
+##             Estimate Std. Error       df t value Pr(&gt;|t|)  
+## (Intercept)   2.4390     0.9375   4.0000   2.602   0.0599 .
+## het           2.9922     1.4222 233.0000   2.104   0.0365 *
+## meanSite     -7.3755     8.1336   4.2562  -0.907   0.4129  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##          (Intr) het   
+## het       0.000       
+## meanSite -0.977 -0.175</code></pre>
+<pre class="r"><code>anova(model.CenteredSameSlopes2, model.CenteredSameSlopes3)</code></pre>
+<pre><code>## refitting model(s) with ML (instead of REML)</code></pre>
+<pre><code>## Data: phenoCentered
+## Models:
+## model.CenteredSameSlopes2: sqrtOrange ~ withinSite + meanSite + (1 | site)
+## model.CenteredSameSlopes3: sqrtOrange ~ het + meanSite + (1 | site)
+##                           Df    AIC    BIC  logLik deviance Chisq Chi Df
+## model.CenteredSameSlopes2  5 530.94 548.35 -260.47   520.94             
+## model.CenteredSameSlopes3  5 530.94 548.35 -260.47   520.94     0      0
+##                           Pr(&gt;Chisq)
+## model.CenteredSameSlopes2           
+## model.CenteredSameSlopes3          1</code></pre>
+<p>Tha above two models are equivalent ways of writing applying the same within-subject centering procedure, corresponding to equations 2 and 3 of van de Pol and Wright (2009).</p>
+<p>We try a separate slopes model next.</p>
+<pre class="r"><code>model.CenteredDiffSlopes &lt;- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
+
+anova(model.CenteredSameSlopes2, model.CenteredDiffSlopes)</code></pre>
+<pre><code>## refitting model(s) with ML (instead of REML)</code></pre>
+<pre><code>## Data: phenoCentered
+## Models:
+## model.CenteredSameSlopes2: sqrtOrange ~ withinSite + meanSite + (1 | site)
+## model.CenteredDiffSlopes: sqrtOrange ~ withinSite + meanSite + (withinSite | site)
+##                           Df    AIC    BIC  logLik deviance  Chisq Chi Df
+## model.CenteredSameSlopes2  5 530.94 548.35 -260.47   520.94              
+## model.CenteredDiffSlopes   7 534.92 559.28 -260.46   520.92 0.0256      2
+##                           Pr(&gt;Chisq)
+## model.CenteredSameSlopes2           
+## model.CenteredDiffSlopes      0.9873</code></pre>
+<p>The separate slopes model is not justified. Within-site centering gives stronger significance.</p>
+</div>
 <div id="read-genotypes" class="section level2">
 <h2>Read genotypes</h2>
 <p>We calculate the GRM and get it ready for <code>sommer</code>/<code>brms</code> analysis. First we see if including a GRM actually helps our analysis.</p>

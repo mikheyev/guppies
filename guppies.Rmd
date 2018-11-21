@@ -45,6 +45,33 @@ summary(model.sameSlopes)
 
 Using a basic mixed model approach, there is marginal significance for the effect of heterozygosity. Given that there is no support for a model with separate slopes, we'll focus on the random intercept mixed model.
 
+### Applying within-group centering
+
+```{r}
+phenoCentered <- pheno %>% group_by(site) %>% transmute(het = het, sqrtOrange = sqrt(orange), meanSite = mean(het), withinSite = het - meanSite)  %>% ungroup() 
+
+model.CenteredSameSlopes2 <- lmer(sqrtOrange ~ withinSite + meanSite + (1|site), data = phenoCentered)
+summary(model.CenteredSameSlopes2)
+
+model.CenteredSameSlopes3 <- lmer(sqrtOrange ~ het + meanSite + (1|site), data = phenoCentered)
+summary(model.CenteredSameSlopes3)
+
+anova(model.CenteredSameSlopes2, model.CenteredSameSlopes3)
+
+```
+
+Tha above two models are equivalent ways of writing applying the same within-subject centering procedure, corresponding to equations 2 and 3 of van de Pol and Wright (2009).
+
+We try a separate slopes model next.
+
+```{r}
+model.CenteredDiffSlopes <- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
+
+anova(model.CenteredSameSlopes2, model.CenteredDiffSlopes)
+```
+
+The separate slopes model is not justified. Within-site centering gives stronger significance.
+
 ## Read genotypes
 
 We calculate the GRM and get it ready for `sommer`/`brms` analysis. First we see if including a GRM actually helps our analysis.
