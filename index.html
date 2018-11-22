@@ -1625,7 +1625,7 @@ summary(model.CenteredSameSlopes3)</code></pre>
 ## model.CenteredSameSlopes3          1</code></pre>
 <p>Tha above two models are equivalent ways of writing applying the same within-subject centering procedure, corresponding to equations 2 and 3 of van de Pol and Wright (2009).</p>
 <p>We try a separate slopes model next.</p>
-<pre class="r"><code>model.CenteredDiffSlopes &lt;- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
+<pre class="r"><code> model.CenteredDiffSlopes &lt;- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
 
 anova(model.CenteredSameSlopes2, model.CenteredDiffSlopes)</code></pre>
 <pre><code>## refitting model(s) with ML (instead of REML)</code></pre>
@@ -1640,6 +1640,13 @@ anova(model.CenteredSameSlopes2, model.CenteredDiffSlopes)</code></pre>
 ## model.CenteredSameSlopes2           
 ## model.CenteredDiffSlopes      0.9873</code></pre>
 <p>The separate slopes model is not justified. Within-site centering gives stronger significance.</p>
+<p>Back transforming the heterozygosity coefficient and confidence interval</p>
+<pre class="r"><code>model.CenteredSameSlopes3@beta[1]^2</code></pre>
+<pre><code>## [1] 5.948706</code></pre>
+<pre class="r"><code>confint(model.CenteredSameSlopes3, &quot;het&quot;)^2</code></pre>
+<pre><code>## Computing profile confidence intervals ...</code></pre>
+<pre><code>##          2.5 %   97.5 %
+## het 0.03969765 33.46705</code></pre>
 </div>
 <div id="read-genotypes" class="section level2">
 <h2>Read genotypes</h2>

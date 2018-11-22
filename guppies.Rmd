@@ -57,7 +57,6 @@ model.CenteredSameSlopes3 <- lmer(sqrtOrange ~ het + meanSite + (1|site), data =
 summary(model.CenteredSameSlopes3)
 
 anova(model.CenteredSameSlopes2, model.CenteredSameSlopes3)
-
 ```
 
 Tha above two models are equivalent ways of writing applying the same within-subject centering procedure, corresponding to equations 2 and 3 of van de Pol and Wright (2009).
@@ -65,12 +64,19 @@ Tha above two models are equivalent ways of writing applying the same within-sub
 We try a separate slopes model next.
 
 ```{r}
-model.CenteredDiffSlopes <- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
+ model.CenteredDiffSlopes <- lmer(sqrtOrange ~  withinSite + meanSite + (withinSite|site), data = phenoCentered)
 
 anova(model.CenteredSameSlopes2, model.CenteredDiffSlopes)
 ```
 
 The separate slopes model is not justified. Within-site centering gives stronger significance.
+
+Back transforming the heterozygosity coefficient and confidence interval
+
+```{r}
+model.CenteredSameSlopes3@beta[1]^2
+confint(model.CenteredSameSlopes3, "het")^2
+```
 
 ## Read genotypes
 
